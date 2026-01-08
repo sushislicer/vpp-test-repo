@@ -59,11 +59,23 @@ Run once per machine/user:
 accelerate config
 ```
 
-Suggested answers (single node):
+Suggested answers (single node, multi-GPU):
 
-* compute environment: LOCAL_MACHINE
-* distributed training: MULTI_GPU
-* mixed precision: fp16 (or bf16 on A800/A100/H100)
+* **In which compute environment are you running?** → `This machine`
+* **Which type of machine are you using?** → `multi-GPU`
+* **How many processes in total?** → set to your GPU count (e.g. `4` or `8`)
+* **Do you want to use DeepSpeed?** → `no`
+* **Do you want to use FullyShardedDataParallel?** → `no`
+* **Do you want to use Megatron-LM?** → `no`
+* **Mixed precision** →
+  * `bf16` for A800/A100/H100 if supported
+  * `fp16` otherwise
+
+If you just want a reasonable default config without the questionnaire:
+
+```bash
+accelerate config default
+```
 
 ### 4) Install CALVIN + dataset
 
@@ -100,7 +112,20 @@ mkdir -p ~/models
 huggingface-cli download openai/clip-vit-base-patch32 --local-dir ~/models/clip-vit-base-patch32
 ```
 
-For the SVD base model, set `SVD_BASE_MODEL` to a local diffusers checkout that matches your upstream training config.
+SVD base model (`SVD_BASE_MODEL`): upstream training expects a **local diffusers directory**.
+
+Example source (Hugging Face; may require accepting model terms):
+
+```bash
+mkdir -p ~/models
+huggingface-cli download stabilityai/stable-video-diffusion-img2vid --local-dir ~/models/stable-video-diffusion-img2vid
+```
+
+Then:
+
+```bash
+export SVD_BASE_MODEL=~/models/stable-video-diffusion-img2vid
+```
 
 ### 6) Point paths + run experiments
 
@@ -127,6 +152,64 @@ The launch scripts are thin wrappers; most “configuration” is just environme
 | `SVD_BASE_MODEL` | Base SVD diffusers directory (local path) | `~/models/stable-video-diffusion-img2vid` |
 | `CLIP_MODEL` | CLIP model directory | `~/models/clip-vit-base-patch32` |
 | `OUTPUT_ROOT` | Where all outputs go | `~/exp/vpp` |
+
+### Where to get each path (what the env vars point to)
+
+#### `CALVIN_ROOT_DATA_DIR` (smaller D/D split)
+
+After downloading CALVIN datasets following the upstream CALVIN instructions, point this variable at the dataset root for your **smaller D/D split**.
+
+Typical pattern:
+
+```bash
+export CALVIN_ROOT_DATA_DIR=/data/calvin/task_D_D
+ls -la "$CALVIN_ROOT_DATA_DIR"
+```
+
+#### `VIDEO_DATASET_DIR` (latent-video dataset root for SVD finetune)
+
+This is the dataset root consumed by VPP’s video finetuning loader. It should contain dataset folders with `annotation/` and pre-encoded latent videos.
+
+Common ways to obtain it:
+
+1) Download the precomputed latents released by the VPP authors (the upstream VPP README links a Hugging Face dataset).
+2) Generate latents yourself from raw videos using the upstream latent-preparation pipeline.
+
+Then:
+
+```bash
+export VIDEO_DATASET_DIR=/data/vpp_svd_latent
+ls -la "$VIDEO_DATASET_DIR"
+```
+
+#### `CLIP_MODEL`
+
+Download from Hugging Face:
+
+```bash
+mkdir -p ~/models
+huggingface-cli download openai/clip-vit-base-patch32 --local-dir ~/models/clip-vit-base-patch32
+export CLIP_MODEL=~/models/clip-vit-base-patch32
+```
+
+#### `SVD_BASE_MODEL`
+
+Download from Hugging Face (example):
+
+```bash
+mkdir -p ~/models
+huggingface-cli download stabilityai/stable-video-diffusion-img2vid --local-dir ~/models/stable-video-diffusion-img2vid
+export SVD_BASE_MODEL=~/models/stable-video-diffusion-img2vid
+```
+
+#### `OUTPUT_ROOT`
+
+Any directory with sufficient disk quota:
+
+```bash
+export OUTPUT_ROOT=~/exp/vpp
+mkdir -p "$OUTPUT_ROOT"
+```
 
 ### Presets (GPU configs)
 
