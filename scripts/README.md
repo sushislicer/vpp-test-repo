@@ -33,7 +33,7 @@ You need:
 
 ```bash
 cd ~
-git clone <YOUR_REPO_URL> VPP
+git clone https://github.com/sushislicer/vpp-test-repo.git VPP
 cd VPP
 ```
 
@@ -113,6 +113,46 @@ export SVD_BASE_MODEL=~/models/stable-video-diffusion-img2vid
 export CLIP_MODEL=~/models/clip-vit-base-patch32
 export OUTPUT_ROOT=~/exp/vpp
 ```
+
+## Configuration checklist (what you *must* set)
+
+The launch scripts are thin wrappers; most “configuration” is just environment variables + choosing a preset.
+
+### Required environment variables
+
+| Variable | Meaning | Example |
+|---|---|---|
+| `VIDEO_DATASET_DIR` | Latent-video dataset root used by upstream SVD finetuning loader | `/data/vpp_svd_latent` |
+| `CALVIN_ROOT_DATA_DIR` | Calvin dataset root for actor training + eval (your smaller D/D split) | `/data/calvin/task_D_D` |
+| `SVD_BASE_MODEL` | Base SVD diffusers directory (local path) | `~/models/stable-video-diffusion-img2vid` |
+| `CLIP_MODEL` | CLIP model directory | `~/models/clip-vit-base-patch32` |
+| `OUTPUT_ROOT` | Where all outputs go | `~/exp/vpp` |
+
+### Presets (GPU configs)
+
+Presets are defined in [`config/cluster_presets.yaml`](config/cluster_presets.yaml) and mirrored in the launcher `case` statements.
+
+* `PRESET=default`
+* `PRESET=rtx5090_4gpu_reduced`
+* `PRESET=a800_8gpu`
+
+If you need to tune memory:
+
+* video finetune batch size is controlled inside [`run_task1_train_vpp_calvin_d2d.sh`](run_task1_train_vpp_calvin_d2d.sh)
+  via `SVD_TRAIN_BS`.
+* actor batch size is passed as a Hydra override into [`train_actor_calvin.py`](train_actor_calvin.py)
+  (example: `batch_size=12`).
+
+### What config files are actually used (upstream)
+
+You normally do **not** edit upstream configs, but it helps to know what’s being driven:
+
+* Video finetune uses upstream config:
+  * [`../video-prediction-policy/video_conf/train_calvin_svd.yaml`](../video-prediction-policy/video_conf/train_calvin_svd.yaml)
+* Actor training uses upstream config:
+  * [`../video-prediction-policy/policy_conf/VPP_Calvinabc_train.yaml`](../video-prediction-policy/policy_conf/VPP_Calvinabc_train.yaml)
+
+Our wrapper [`train_actor_calvin.py`](train_actor_calvin.py) overrides the dataset/model/log paths in code, without modifying upstream files.
 
 Run Task 1 (reproduce training):
 
