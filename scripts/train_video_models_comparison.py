@@ -1,19 +1,31 @@
 #!/usr/bin/env python3
-"""
-Train Two Video Models with Different Random Seeds for Comparison
+"""scripts/train_video_models_comparison.py
 
-This script trains two versions of the video model (Video A, Video B) 
-by changing random seeds, then trains Actor A with Video A and Actor B with Video B.
-Finally, it compares evaluation metrics between [Video A + Actor A] and [Video B + Actor B].
+DEPRECATED.
 
-Usage:
-    python train_video_models_comparison.py \
-        --config config/train_video_comparison.yaml \
-        --video_a_seed 42 \
-        --video_b_seed 123 \
-        --actor_a_seed 456 \
-        --actor_b_seed 789
+This file originally contained a *placeholder* implementation for a video-model
+seed comparison experiment. It did not run the actual VPP training pipeline.
+
+Use the launcher scripts instead:
+
+* Task 1 (train VPP on Calvin D→D): scripts/run_task1_train_vpp_calvin_d2d.sh
+* Task 2 (Video A/B seeds + fixed Actor A): scripts/run_task2_video_seed_fixed_actor.sh
 """
+
+import sys
+
+
+def main():
+    print(
+        "This script is deprecated. Run one of:\n"
+        "  - scripts/run_task1_train_vpp_calvin_d2d.sh\n"
+        "  - scripts/run_task2_video_seed_fixed_actor.sh\n"
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
 
 import argparse
 import json

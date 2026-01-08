@@ -28,6 +28,7 @@ import hydra
 import numpy as np
 import torch
 import torch.distributed as dist
+from hydra import compose, initialize
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything
 from termcolor import colored
@@ -403,7 +404,11 @@ def main(cfg):
 
 if __name__ == "__main__":
     # Set environment variables for distributed training
-    os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
+    # Prefer NCCL for multi-GPU if available.
+    os.environ.setdefault(
+        "PL_TORCH_DISTRIBUTED_BACKEND",
+        "nccl" if torch.cuda.is_available() else "gloo",
+    )
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     
     # Parse arguments

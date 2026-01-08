@@ -489,7 +489,11 @@ def save_d2d_results(all_results: Dict[Tuple[str, str], Tuple[List[int], Dict]],
     transfer_metrics = calculate_transfer_metrics(all_results)
     results_data["transfer_metrics"] = {
         "same_domain": {k: float(v) for k, v in transfer_metrics["same_domain"].items()},
-        "cross_domain": {f"{k[0]}_to_{k[1]}": float(v) for k, v in transfer_metrics["cross_domain"].items()},
+        # cross_domain is nested as: source -> {target -> avg_seq_len}
+        "cross_domain": {
+            source: {target: float(avg) for target, avg in targets.items()}
+            for source, targets in transfer_metrics["cross_domain"].items()
+        },
         "transfer_gap": {f"{k[0]}_to_{k[1]}": float(v) for k, v in transfer_metrics["transfer_gap"].items()},
         "domain_similarity": {f"{k[0]}_to_{k[1]}": float(v) for k, v in transfer_metrics["domain_similarity"].items()}
     }

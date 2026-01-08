@@ -16,10 +16,13 @@ echo -e "${GREEN}===============================================================
 echo ""
 
 # Default paths (can be overridden with environment variables)
-VPP_DIR="${VPP_DIR:-/home/yangc/Lab/VPP/video-prediction-policy}"
-MODELS_DIR="${MODELS_DIR:-/home/yangc/Lab/VPP/models}"
-DATASET_DIR="${DATASET_DIR:-/home/yangc/Lab/VPP/calvin/task_D_D}"
-CALVIN_ROOT="${CALVIN_ROOT:-/home/yangc/Lab/VPP/calvin}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+VPP_DIR="${VPP_DIR:-${REPO_ROOT}/video-prediction-policy}"
+MODELS_DIR="${MODELS_DIR:-${REPO_ROOT}/models}"
+DATASET_DIR="${DATASET_DIR:-${REPO_ROOT}/calvin/task_D_D}"
+CALVIN_ROOT="${CALVIN_ROOT:-${REPO_ROOT}/calvin}"
 
 # Step 1: Check conda installation
 echo -e "${YELLOW}[1/8] Checking conda installation...${NC}"
@@ -55,7 +58,7 @@ read -p "Do you want to install Calvin environment? (y/n) [n]: " install_calvin
 if [ "$install_calvin" = "y" ] || [ "$install_calvin" = "Y" ]; then
     if [ ! -d "$CALVIN_ROOT" ]; then
         echo -e "${YELLOW}Cloning Calvin repository...${NC}"
-        cd /home/yangc/Lab/VPP
+        cd "$REPO_ROOT"
         git clone --recurse-submodules https://github.com/mees/calvin.git
         echo -e "${GREEN}✓ Calvin repository cloned${NC}"
     else
@@ -67,11 +70,8 @@ if [ "$install_calvin" = "y" ] || [ "$install_calvin" = "Y" ]; then
     sh install.sh
     echo -e "${GREEN}✓ Calvin installed${NC}"
     
-    # Add to .bashrc if not already there
-    if ! grep -q "CALVIN_ROOT" ~/.bashrc; then
-        echo "export CALVIN_ROOT=$CALVIN_ROOT" >> ~/.bashrc
-        echo -e "${GREEN}✓ CALVIN_ROOT added to ~/.bashrc${NC}"
-    fi
+    echo -e "${YELLOW}Note:${NC} If you want CALVIN_ROOT persisted, add this to your shell rc file:"
+    echo "export CALVIN_ROOT=$CALVIN_ROOT"
 else
     echo -e "${YELLOW}Skipping Calvin installation${NC}"
 fi
@@ -125,7 +125,7 @@ echo ""
 
 # Step 10: Verify installation
 echo -e "${YELLOW}Verifying installation...${NC}"
-cd /home/yangc/Lab/VPP/scripts
+cd "${SCRIPT_DIR}"
 
 if python test_d2d_setup.py; then
     echo -e "${GREEN}✓ Basic installation test passed${NC}"
