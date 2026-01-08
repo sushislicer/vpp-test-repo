@@ -32,6 +32,12 @@ PRESET="${PRESET:-default}"
 
 MAIN_PORT="${MAIN_PORT:-29516}"
 
+# Optional: override upstream video training dataset mix.
+# Examples:
+#   VIDEO_DATASETS="calvin" VIDEO_DATASET_PROB="[1.0]"
+VIDEO_DATASETS="${VIDEO_DATASETS:-}"
+VIDEO_DATASET_PROB="${VIDEO_DATASET_PROB:-}"
+
 VIDEO_A_SEED="${VIDEO_A_SEED:-42}"
 VIDEO_B_SEED="${VIDEO_B_SEED:-123}"
 ACTOR_A_SEED="${ACTOR_A_SEED:-456}"
@@ -78,6 +84,13 @@ ACTOR_A_OUT="${OUTPUT_ROOT}/actor_A_from_video_A_seed_${VIDEO_A_SEED}"
 echo "[Task2] PRESET=${PRESET} GPUs=${NUM_GPUS} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
 
 echo "[Task2][1/4] Train Video A (seed=${VIDEO_A_SEED})"
+EXTRA_VIDEO_ARGS=()
+if [[ -n "${VIDEO_DATASETS}" ]]; then
+  EXTRA_VIDEO_ARGS+=("train_args.dataset=${VIDEO_DATASETS}")
+fi
+if [[ -n "${VIDEO_DATASET_PROB}" ]]; then
+  EXTRA_VIDEO_ARGS+=("train_args.prob=${VIDEO_DATASET_PROB}")
+fi
 accelerate launch \
   --num_processes="${NUM_GPUS}" \
   --main_process_port="${MAIN_PORT}" \
@@ -89,7 +102,8 @@ accelerate launch \
   train_batch_size="${SVD_TRAIN_BS}" \
   gradient_checkpointing="${SVD_GRAD_CKPT}" \
   seed="${VIDEO_A_SEED}" \
-  train_args.dataset_dir="${VIDEO_DATASET_DIR}"
+  train_args.dataset_dir="${VIDEO_DATASET_DIR}" \
+  "${EXTRA_VIDEO_ARGS[@]}"
 
 echo "[Task2][2/4] Train Video B (seed=${VIDEO_B_SEED})"
 accelerate launch \
@@ -103,7 +117,8 @@ accelerate launch \
   train_batch_size="${SVD_TRAIN_BS}" \
   gradient_checkpointing="${SVD_GRAD_CKPT}" \
   seed="${VIDEO_B_SEED}" \
-  train_args.dataset_dir="${VIDEO_DATASET_DIR}"
+  train_args.dataset_dir="${VIDEO_DATASET_DIR}" \
+  "${EXTRA_VIDEO_ARGS[@]}"
 
 echo "[Task2][3/4] Train Actor A with Video A (actor_seed=${ACTOR_A_SEED})"
 mkdir -p "${ACTOR_A_OUT}"

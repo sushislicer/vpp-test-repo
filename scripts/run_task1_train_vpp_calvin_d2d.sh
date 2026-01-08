@@ -33,6 +33,12 @@ STAGE="${STAGE:-all}"  # video|actor|all
 MAIN_PORT="${MAIN_PORT:-29506}"
 VIDEO_SEED="${VIDEO_SEED:-42}"
 
+# Optional: override upstream video training dataset mix.
+# Examples:
+#   VIDEO_DATASETS="calvin" VIDEO_DATASET_PROB="[1.0]"
+VIDEO_DATASETS="${VIDEO_DATASETS:-}"
+VIDEO_DATASET_PROB="${VIDEO_DATASET_PROB:-}"
+
 case "${PRESET}" in
   default)
     NUM_GPUS=8
@@ -74,6 +80,14 @@ if [[ "${STAGE}" == "video" || "${STAGE}" == "all" ]]; then
   echo "[Task1][video] PRESET=${PRESET} GPUs=${NUM_GPUS} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
   echo "[Task1][video] Output: ${VIDEO_OUT}"
 
+  EXTRA_VIDEO_ARGS=()
+  if [[ -n "${VIDEO_DATASETS}" ]]; then
+    EXTRA_VIDEO_ARGS+=("train_args.dataset=${VIDEO_DATASETS}")
+  fi
+  if [[ -n "${VIDEO_DATASET_PROB}" ]]; then
+    EXTRA_VIDEO_ARGS+=("train_args.prob=${VIDEO_DATASET_PROB}")
+  fi
+
   accelerate launch \
     --num_processes="${NUM_GPUS}" \
     --main_process_port="${MAIN_PORT}" \
@@ -85,7 +99,8 @@ if [[ "${STAGE}" == "video" || "${STAGE}" == "all" ]]; then
     train_batch_size="${SVD_TRAIN_BS}" \
     gradient_checkpointing="${SVD_GRAD_CKPT}" \
     seed="${VIDEO_SEED}" \
-    train_args.dataset_dir="${VIDEO_DATASET_DIR}"
+    train_args.dataset_dir="${VIDEO_DATASET_DIR}" \
+    "${EXTRA_VIDEO_ARGS[@]}"
 fi
 
 if [[ "${STAGE}" == "actor" || "${STAGE}" == "all" ]]; then

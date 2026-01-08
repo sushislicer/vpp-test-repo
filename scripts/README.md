@@ -35,6 +35,12 @@ You need:
 cd ~
 git clone https://github.com/sushislicer/vpp-test-repo.git VPP
 cd VPP
+
+# IMPORTANT: video-prediction-policy is NOT a git submodule in this repo.
+# Ensure the upstream VPP repo is present at ./video-prediction-policy
+if [ ! -d video-prediction-policy ]; then
+  git clone https://github.com/roboterax/video-prediction-policy.git video-prediction-policy
+fi
 ```
 
 ### 2) Create environment + install Python deps
@@ -174,6 +180,51 @@ Common ways to obtain it:
 
 1) Download the precomputed latents released by the VPP authors (the upstream VPP README links a Hugging Face dataset).
 2) Generate latents yourself from raw videos using the upstream latent-preparation pipeline.
+
+##### Option A (recommended): download the released latents from Hugging Face
+
+The upstream VPP README references the dataset **`yjguo/vpp_svd_latent`**.
+
+Example:
+
+```bash
+# If needed (first time on this machine):
+huggingface-cli login
+
+mkdir -p /data/vpp_svd_latent
+huggingface-cli download yjguo/vpp_svd_latent \
+  --repo-type dataset \
+  --local-dir /data/vpp_svd_latent \
+  --local-dir-use-symlinks False
+export VIDEO_DATASET_DIR=/data/vpp_svd_latent
+```
+
+If you only need CALVIN-related files, you can try to download a subset (exact paths depend on the dataset layout):
+
+```bash
+huggingface-cli download yjguo/vpp_svd_latent \
+  --repo-type dataset \
+  --local-dir /data/vpp_svd_latent \
+  --include "calvin/**"
+```
+
+Do you need the *entire* dataset repo?
+
+* Only if your video finetune config mixes multiple datasets.
+* If you want CALVIN-only finetuning, you can run the launchers with:
+
+```bash
+export VIDEO_DATASETS=calvin
+export VIDEO_DATASET_PROB='[1.0]'
+```
+
+and then downloading only the CALVIN subset is sufficient.
+
+##### Option B: build your own latent-video dataset
+
+This requires converting raw robot videos into the dataset structure expected by upstream
+[`video_dataset/dataset_mix.py`](../video-prediction-policy/video_dataset/dataset_mix.py:41) (JSON annotations + videos + latent `.pt`).
+Use the upstream latent-preparation scripts as a starting point.
 
 Then:
 
