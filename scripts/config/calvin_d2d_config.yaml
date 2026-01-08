@@ -1,0 +1,288 @@
+# Configuration for Calvin D -> D Benchmark with 4 GPU Cards
+# This config is designed for running VPP evaluation on Calvin D -> D dataset
+# using 4 GPU cards in parallel with accelerate
+
+defaults:
+  - /callbacks/rollout/tasks@tasks: new_playtable_tasks
+  - annotations: new_playtable_validation
+  - datamodule: calvin
+
+# Model configuration
+model:
+  _target_: policy_models.VPP_policy.VPP_Policy
+  _recursive_: false
+  latent_dim: 384
+  multistep: 10
+  sampler_type: 'ddim'
+  num_sampling_steps: 10
+  sigma_data: 0.5
+  sigma_min: 0.001
+  sigma_max: 80
+  noise_scheduler: 'exponential'
+  sigma_sample_density_type: 'loglogistic'
+  use_lr_scheduler: true
+  act_window_size: 10
+  obs_seq_len: 1
+  action_dim: 7
+  action_seq_len: 10
+  use_text_not_embedding: True
+  seed: ${seed}
+  Former_depth: 6
+  Former_heads: 8
+  Former_dim_head: 64
+  Former_num_time_embeds: 16
+  num_latents: 224
+  text_encoder_path: ""  # Will be set from command line
+  pretrained_model_path: ""  # Will be set from command line
+  use_Former: 3d
+  timestep: 20
+  use_all_layer: True
+  extract_layer_idx: 1
+  use_position_encoding: False
+  optimizer:
+    _target_: torch.optim.AdamW
+    transformer_weight_decay: 0.05
+    obs_encoder_weight_decay: 0.05
+    learning_rate: 1e-4
+    betas: [ 0.9, 0.9 ]
+  lr_scheduler:
+    lr_scheduler:
+      init_lr: 1e-4
+      init_lr_scale: 0.1
+      final_lr_scale: 1e-6
+      total_steps: 50000
+      phase_ratio: "(0.02, 0.08, 0.9)"
+      lr: 1e-4
+
+# Evaluation configuration overwrite
+eval_cfg_overwrite:
+  datamodule:
+    datasets:
+      lang_dataset:
+        lang_folder: lang_annotations
+  overwrite_module_cfg:
+    voltron_cache: /home/disk2/gyj/code/mdt_policy/pretrained_model_weights
+
+# D -> D specific configuration
+# Define domain pairs to evaluate
+# Available domains: A, B, C, D (each represents different visual conditions)
+# Format: source_domain -> target_domain
+domains:
+  # Same domain (baseline)
+  - ["A", "A"]
+  - ["B", "B"]
+  - ["C", "C"]
+  - ["D", "D"]
+  
+  # Cross-domain transfers
+  - ["A", "B"]
+  - ["A", "C"]
+  - ["A", "D"]
+  - ["B", "A"]
+  - ["B", "C"]
+  - ["B", "D"]
+  - ["C", "A"]
+  - ["C", "B"]
+  - ["C", "D"]
+  - ["D", "A"]
+  - ["D", "B"]
+  - ["D", "C"]
+
+# Domain-specific settings (optional)
+domain_settings:
+  A:
+    description: "Standard lighting and camera angle"
+    lighting: "normal"
+    camera_angle: "default"
+  B:
+    description: "Dim lighting"
+    lighting: "dim"
+    camera_angle: "default"
+  C:
+    description: "Bright lighting"
+    lighting: "bright"
+    camera_angle: "default"
+  D:
+    description: "Different camera angle"
+    lighting: "normal"
+    camera_angle: "alternate"
+
+# Evaluation parameters
+ep_len: 360
+num_sequences: 1000
+num_videos: 10
+lang_embeddings: null
+render: False
+log_wandb: True
+
+# Wandb configuration
+wandb:
+  project: "vpp-calvin-d2d"
+  entity: ""  # Set your wandb entity
+  mode: "online"  # Options: online, offline, disabled
+
+# Benchmark settings
+benchmark_name: "calvin_d2d"
+debug: False
+dataset_path: ""  # Will be set from command line
+train_folder: ""  # Will be set from command line
+model_name: "vpp_d2d"
+device: 0  # Will be overridden by distributed setup
+sampler_type: ddim
+multistep: 10
+num_sampling_steps: 10
+cond_lambda: 1
+cfg_value: 1
+sigma_min: 1.0
+sigma_max: 80
+noise_scheduler: exponential
+
+# Language and action settings
+lang_folder: lang_annotations
+act_seq_len: 10
+obs_seq_len: 1
+future_range: 29
+
+# Logging configuration
+log_dir: ./logs
+slurm: false
+min_window_size: 21
+max_window_size: 50
+
+# GPU-specific batch size settings
+# RTX 5090 (24GB): batch_size: 16-20
+# RTX 4090 (24GB): batch_size: 20-24
+# A100 40GB: batch_size: 32-40
+# A100 80GB: batch_size: 64-80
+# Default: batch_size: 38 (works well on A100 40GB)
+batch_size: 38
+
+# Alternative GPU configurations (uncomment based on your GPU)
+# For RTX 5090 (24GB VRAM):
+# batch_size: 18
+# devices: 4
+# gpu_ids: "0,1,2,3"
+
+# For RTX 4090 (24GB VRAM):
+# batch_size: 22
+# devices: 4
+# gpu_ids: "0,1,2,3"
+
+# For A100 40GB:
+# batch_size: 32
+# devices: 4
+# gpu_ids: "0,1,2,3"
+
+# For A100 80GB:
+# batch_size: 64
+# devices: 4
+# gpu_ids: "0,1,2,3"
+
+seed: 242
+devices: 4  # Number of GPU devices
+goal_window_size: 1
+p_last_state: 0
+log_every: 50
+rollout_lh_skip_epochs: 290
+window_sampling_strategy: 'geometric'
+num_workers: 12
+img_gen_frame_diff: 3
+
+# Data directory (will be set from command line)
+root_data_dir: ""  # Path to Calvin D -> D dataset
+
+# Distributed training settings
+# These are used by accelerate
+num_processes: 4
+num_machines: 1
+gpu_ids: "0,1,2,3"
+mixed_precision: "no"
+dynamo_backend: "no"
+
+# Additional D -> D specific settings
+d2d_settings:
+  # Whether to evaluate on all domain pairs or only specific ones
+  evaluate_all_pairs: true
+  
+  # Specific domain pairs to evaluate (if evaluate_all_pairs is false)
+  specific_pairs: []
+  
+  # Whether to use domain-specific language annotations
+  use_domain_specific_lang: false
+  
+  # Domain adaptation strategy (if any)
+  domain_adaptation: "none"  # Options: none, finetune, adapter
+  
+  # Number of sequences per domain pair
+  sequences_per_pair: 1000
+  
+  # Whether to shuffle domain pairs during evaluation
+  shuffle_domains: false
+
+# Performance optimization
+performance:
+  # Enable gradient checkpointing for memory efficiency
+  gradient_checkpointing: false
+  
+  # Use automatic mixed precision
+  use_amp: false
+  
+  # Pin memory for faster data loading
+  pin_memory: true
+  
+  # Non-blocking data transfer
+  non_blocking: true
+
+# Video recording settings
+video_recording:
+  # Resolution scale for recorded videos
+  resolution_scale: 1
+  
+  # Frames per second for output videos
+  fps: 10
+  
+  # Video codec
+  codec: "mp4v"
+  
+  # Whether to save videos for failed sequences
+  save_failures: true
+  
+  # Whether to save videos for successful sequences
+  save_successes: true
+
+# Result aggregation
+results:
+  # Calculate per-domain statistics
+  per_domain_stats: true
+  
+  # Calculate overall statistics
+  overall_stats: true
+  
+  # Calculate transfer learning metrics
+  transfer_metrics: true
+  
+  # Save detailed results per sequence
+  save_per_sequence: false
+  
+  # Save task-specific success rates
+  save_task_specific: true
+
+# Advanced settings
+advanced:
+  # Use EMA weights if available
+  use_ema_weights: false
+  
+  # Temperature for sampling
+  temperature: 1.0
+  
+  # Top-k sampling
+  top_k: null
+  
+  # Top-p sampling
+  top_p: null
+  
+  # Number of inference steps for video prediction
+  video_inference_steps: 25
+  
+  # Guidance scale for classifier-free guidance
+  guidance_scale: 7.5

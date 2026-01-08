@@ -1,0 +1,95 @@
+# Configuration for Training Video Models Comparison
+# This config is for training two video models with different random seeds
+# and comparing their performance with different actors
+
+# Output directory
+output_dir: ./video_model_comparison_output
+
+# Random seeds for training
+video_a_seed: 42  # Random seed for Video A
+video_b_seed: 123  # Random seed for Video B
+actor_a_seed: 456  # Random seed for Actor A
+actor_b_seed: 789  # Random seed for Actor B
+
+# Calvin D -> D dataset path
+calvin_d2d_dir: /path/to/calvin/task_D_D
+
+# Video model training configuration
+model:
+  _target_: policy_models.module.Video_Former.VideoFormer
+  _recursive_: false
+  latent_dim: 384
+  img_size: 256
+  max_frames: 16
+  num_frames: 25
+  random_crop: true
+  use_position_encoding: false
+  
+  # VideoFormer architecture
+  Former_depth: 6
+  Former_heads: 8
+  Former_dim_head: 64
+  Former_num_time_embeds: 16
+  num_latents: 224
+  timestep: 20
+  use_all_layer: true
+  extract_layer_idx: 1
+  
+  # Optimizer settings
+  optimizer:
+    _target_: torch.optim.AdamW
+    transformer_weight_decay: 0.05
+    learning_rate: 1e-4
+    betas: [0.9, 0.9]
+  
+  # Training settings
+  max_epochs: 100
+  save_every: 10  # Save checkpoint every N epochs
+  batch_size: 4  # Adjust based on GPU memory
+
+# Actor model training configuration
+# Note: This would use VPP_policy or similar in actual implementation
+# For this comparison script, we use a simplified architecture
+
+actor_model:
+  _target_: torch.nn.Sequential
+  input_dim: 384  # latent_dim from video model
+  hidden_dim: 512
+  output_dim: 7  # action_dim
+  
+  # Optimizer settings
+  optimizer:
+    _target_: torch.optim.AdamW
+    transformer_weight_decay: 0.05
+    learning_rate: 1e-4
+    betas: [0.9, 0.9]
+  
+  # Training settings
+  max_epochs: 100
+  save_every: 10
+  batch_size: 32  # Adjust based on GPU memory
+
+# Evaluation configuration
+eval_cfg_overwrite:
+  datamodule:
+    datasets:
+      lang_dataset:
+        lang_folder: lang_annotations
+  overwrite_module_cfg:
+    voltron_cache: /home/disk2/gyj/code/mdt_policy/pretrained_model_weights
+
+# Evaluation parameters
+ep_len: 360
+num_sequences: 1000  # Number of evaluation sequences
+num_videos: 10  # Number of videos to record
+debug: false
+
+# Logging
+log_wandb: true
+wandb:
+  project: "vpp-video-model-comparison"
+  entity: ""  # Set your wandb entity
+  mode: "online"
+
+# Seed
+seed: 0
