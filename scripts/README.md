@@ -199,6 +199,17 @@ Use these answers for a single node:
 
 Actor training + env evaluation require CALVIN.
 
+#### Python version note (your aibox-pytorch container)
+
+Your container image `registry.baidubce.com/inference/aibox-pytorch:v1.0-torch2.5.1-cu12.4` ships with
+PyTorch 2.5.1 and (typically) Python 3.11.
+
+Some CALVIN install guides recommend **Python 3.8**. If you really need CALVIN installed under Python 3.8,
+use a *separate* conda env for CALVIN tooling, but keep VPP training in the container’s default Python.
+
+The key trick is: **VPP only needs to import `calvin_env` at runtime**, so you can expose the CALVIN source
+tree to the container Python via `PYTHONPATH` (no cross-Python-site-packages mixing).
+
 ```bash
 cd ~
 git clone --recurse-submodules https://github.com/mees/calvin.git
@@ -244,6 +255,37 @@ bash scripts/install_calvin_with_compat_pins.sh
 
 This installs CALVIN components in editable mode but skips dependency resolution for `calvin_models`
 (so it does not force `torch==1.13.1`).
+
+##### If you must install CALVIN under Python 3.8 (separate env)
+
+Create a dedicated CALVIN env (Python 3.8) *only for installing/testing CALVIN itself*:
+
+```bash
+conda create -n calvin38 python=3.8 -y
+conda activate calvin38
+
+# (China/GFW) pip mirror + resilient pip settings
+bash scripts/configure_pip_mirror_cn.sh
+export PIP_CONFIG_FILE=/dev/null
+export PIP_DEFAULT_TIMEOUT=600
+export PIP_RETRIES=20
+
+export CALVIN_ROOT=~/calvin
+export CALVIN_INSTALL_MODE=no_deps
+bash scripts/install_calvin_with_compat_pins.sh
+```
+
+Then, in the **container’s default Python (PyTorch 2.5.1)** where you run VPP tasks, expose `calvin_env`
+from the CALVIN source checkout:
+
+```bash
+export CALVIN_ROOT=~/calvin
+export PYTHONPATH="${CALVIN_ROOT}:${PYTHONPATH:-}"
+python3 -c "import calvin_env; print('calvin_env import OK from', calvin_env.__file__)"
+```
+
+This avoids trying to install Python-3.8-built packages into Python 3.11 while still letting VPP import
+`calvin_env`.
 
 If the install appears to **hang downloading PyTorch** (e.g. `torch-1.13.1-...whl` at only a few kB/s),
 switch to a different mirror and retry. For example, Aliyun is often faster than TUNA on some networks:
