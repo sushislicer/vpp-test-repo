@@ -149,6 +149,18 @@ cd "$CALVIN_ROOT"
 sh install.sh
 ```
 
+If CALVIN install fails with:
+
+* `error in pyhash setup command: use_2to3 is invalid.`
+
+it is usually due to a too-new `setuptools` in your env. Fix by pinning `setuptools<58` and rerun:
+
+```bash
+conda activate vpp
+export CALVIN_ROOT=~/calvin
+bash scripts/install_calvin_with_compat_pins.sh
+```
+
 Set the dataset path env var (your smaller D/D split):
 
 ```bash
