@@ -132,14 +132,38 @@ python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.versio
 # (China/GFW) use an HTTPS pip mirror
 bash scripts/configure_pip_mirror_cn.sh
 
+# Container images sometimes ship a global pip config that enables strict settings
+# (e.g. hash-checking) or uses an HTTP mirror. For a clean, reproducible install,
+# ignore system/user pip config for this repo session.
+export PIP_CONFIG_FILE=/dev/null
+
+# Make pip more tolerant of slow/unstable networks for large wheels.
+export PIP_DEFAULT_TIMEOUT=600
+export PIP_RETRIES=20
+
+# If you see "DO NOT MATCH THE HASHES" errors, it is usually a corrupted/partial
+# download or a strict pip hash policy. Purge cache and retry with no cache.
+python3 -m pip cache purge || true
+
 # Install upstream VPP deps BUT DO NOT install/override torch.
 # The upstream requirements pin `torch==2.0.1`, which would downgrade your container torch.
 grep -v -E '^torch==' video-prediction-policy/requirements.txt > /tmp/vpp_requirements.no_torch.txt
-pip install -r /tmp/vpp_requirements.no_torch.txt
+pip install \
+  --no-cache-dir \
+  --timeout "${PIP_DEFAULT_TIMEOUT}" \
+  --retries "${PIP_RETRIES}" \
+  -r /tmp/vpp_requirements.no_torch.txt
 pip install accelerate "huggingface_hub[cli]"
 
 # Optional
 pip install wandb
+```
+
+If your pip downloads still time out in this container, increase timeouts further:
+
+```bash
+export PIP_DEFAULT_TIMEOUT=3600
+export PIP_RETRIES=50
 ```
 
 ### 3) Configure `accelerate`
