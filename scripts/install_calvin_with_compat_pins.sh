@@ -38,6 +38,16 @@ echo "[calvin-install] python: $(python3 -V)"
 echo "[calvin-install] Applying packaging compatibility pins..."
 python3 -m pip install --upgrade "pip<25" "wheel" "setuptools<58" >/dev/null
 
+# Ensure build-time dependencies pulled via legacy `setup_requires` can be resolved.
+# Some mirrors (or HTTP URLs) are treated as untrusted by pip and will be ignored,
+# causing failures like: "No matching distribution found for pytest-runner".
+if [[ -z "${PIP_INDEX_URL:-}" ]]; then
+  export PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
+fi
+if [[ -z "${PIP_TRUSTED_HOST:-}" ]]; then
+  export PIP_TRUSTED_HOST="pypi.tuna.tsinghua.edu.cn"
+fi
+
 if [[ -n "${PIP_INDEX_URL:-}" ]]; then
   echo "[calvin-install] Using PIP_INDEX_URL=${PIP_INDEX_URL}"
 fi
@@ -46,9 +56,9 @@ if [[ -n "${PIP_TRUSTED_HOST:-}" ]]; then
 fi
 
 # pyhash (a CALVIN dependency) sometimes declares build-time deps via setup_requires.
-# If your pip is configured to an HTTP mirror or an untrusted host, those build deps
-# can fail to resolve. Preinstall the common culprit explicitly.
-python3 -m pip install -U pytest-benchmark >/dev/null || true
+# If those build deps fail to resolve, installs can error out while generating metadata.
+# Preinstall the common culprits explicitly.
+python3 -m pip install -U pytest-runner pytest-benchmark >/dev/null || true
 
 echo "[calvin-install] Installing CALVIN via install.sh..."
 cd "${CALVIN_ROOT}"
