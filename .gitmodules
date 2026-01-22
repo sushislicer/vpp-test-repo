@@ -1,0 +1,4 @@
+[submodule "video-prediction-policy"]
+	path = video-prediction-policy
+	url = https://github.com/roboterax/video-prediction-policy.git
+

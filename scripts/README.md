@@ -29,11 +29,18 @@ You need:
 * NVIDIA driver + CUDA runtime working (`nvidia-smi`)
 * A conda installation (Miniconda/Mambaforge)
 
-### 1) Clone repo
+### 1) Clone repo (with submodule)
 
 ```bash
 cd ~
-git clone <YOUR_REPO_URL> VPP
+git clone --recurse-submodules <YOUR_REPO_URL> VPP
+```
+
+If you already cloned without submodules:
+
+```bash
+cd ~/VPP
+git submodule update --init --recursive
 ```
 
 Verify:
@@ -43,7 +50,7 @@ ls -la ~/VPP
 ls -la ~/VPP/video-prediction-policy
 ```
 
-Note: this repo already contains the upstream VPP code under `video-prediction-policy/`.
+Note: upstream VPP is tracked as a git submodule at `video-prediction-policy/`.
 
 ### 2) Create environment + install Python deps
 
