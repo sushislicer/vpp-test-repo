@@ -72,6 +72,9 @@ esac
 
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES_VALUE}"
 
+# Ensure PYTHONPATH includes VPP_DIR and CALVIN_ROOT (if set)
+export PYTHONPATH="${VPP_DIR}:${CALVIN_ROOT:-}:${PYTHONPATH:-}"
+
 mkdir -p "${OUTPUT_ROOT}"
 
 VIDEO_OUT="${OUTPUT_ROOT}/video_seed_${VIDEO_SEED}"

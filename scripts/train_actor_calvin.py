@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import os
 from pathlib import Path
 
 from omegaconf import OmegaConf
@@ -74,6 +75,15 @@ def main() -> int:
 
     # Import upstream training function without executing its __main__ block.
     sys.path.insert(0, str(vpp_dir))
+    
+    # Ensure calvin_env is importable (check PYTHONPATH if missing)
+    try:
+        import calvin_env
+    except ImportError:
+        print("Error: calvin_env not found. Please set PYTHONPATH to include CALVIN_ROOT.", file=sys.stderr)
+        print(f"Current PYTHONPATH: {os.environ.get('PYTHONPATH', '')}", file=sys.stderr)
+        return 1
+
     from step2_train_action_calvin import train  # noqa: WPS433
 
     from hydra import compose, initialize  # noqa: WPS433
@@ -105,4 +115,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
