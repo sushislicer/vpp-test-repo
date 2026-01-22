@@ -62,6 +62,36 @@ pip_install() {
 
 pip_install --upgrade "pip<25" wheel "setuptools<58" >/dev/null
 
+# PyTorch is a very large wheel on PyPI and can be painfully slow to download in some
+# networks/containers. If you have conda available, preinstalling torch via conda is
+# often faster and avoids pip trying to fetch ~GB wheels.
+#
+# Opt-in via:
+#   export CALVIN_PREINSTALL_TORCH=1
+#
+# You can also choose a CPU-only install (smaller) via:
+#   export CALVIN_TORCH_VARIANT=cpu
+CALVIN_PREINSTALL_TORCH="${CALVIN_PREINSTALL_TORCH:-0}"
+CALVIN_TORCH_VARIANT="${CALVIN_TORCH_VARIANT:-cuda}"
+if [[ "${CALVIN_PREINSTALL_TORCH}" == "1" ]]; then
+  if python3 -c "import torch; print(torch.__version__)" >/dev/null 2>&1; then
+    echo "[calvin-install] torch already installed; skipping torch preinstall"
+  else
+    if command -v conda >/dev/null 2>&1; then
+      echo "[calvin-install] Preinstalling torch via conda to avoid slow pip wheel downloads..."
+      if [[ "${CALVIN_TORCH_VARIANT}" == "cpu" ]]; then
+        # CPU-only (smaller), good enough to get CALVIN installed.
+        conda install -y pytorch==1.13.1 torchvision torchaudio cpuonly -c pytorch || true
+      else
+        # CUDA variant (requires working NVIDIA stack inside the container).
+        conda install -y pytorch==1.13.1 torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia || true
+      fi
+    else
+      echo "[calvin-install] conda not found; cannot preinstall torch via conda" >&2
+    fi
+  fi
+fi
+
 if [[ -n "${PIP_INDEX_URL:-}" ]]; then
   echo "[calvin-install] Using PIP_INDEX_URL=${PIP_INDEX_URL}"
 fi

@@ -174,6 +174,26 @@ export CALVIN_ROOT=~/calvin
 bash scripts/install_calvin_with_compat_pins.sh
 ```
 
+If the install appears to **hang downloading PyTorch** (e.g. `torch-1.13.1-...whl` at only a few kB/s),
+switch to a different mirror and retry. For example, Aliyun is often faster than TUNA on some networks:
+
+```bash
+conda activate vpp
+PIP_MIRROR=aliyun bash scripts/configure_pip_mirror_cn.sh
+export CALVIN_ROOT=~/calvin
+bash scripts/install_calvin_with_compat_pins.sh
+```
+
+Alternative: preinstall torch via conda (often faster/more reliable than large wheels over pip), then rerun
+the CALVIN installer; it should reuse the existing torch install:
+
+```bash
+conda activate vpp
+conda install -y pytorch==1.13.1 torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+export CALVIN_ROOT=~/calvin
+bash scripts/install_calvin_with_compat_pins.sh
+```
+
 Set the dataset path env var (your smaller D/D split):
 
 ```bash
