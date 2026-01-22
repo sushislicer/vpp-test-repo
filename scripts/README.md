@@ -22,7 +22,11 @@ This folder is the **only** place you should need to touch to run experiments.
 
 This section is **fully command-driven** (copy/paste).
 
-If your repo lives at `~/workspace/vpp-test-repo` (your SSH VM), set:
+This README assumes your repo is cloned to:
+
+* `~/workspace/vpp-test-repo`
+
+Set:
 
 ```bash
 export REPO_ROOT=~/workspace/vpp-test-repo
@@ -38,13 +42,6 @@ You need:
   * Option B: an ML container that already includes Python + CUDA + PyTorch (e.g. aibox-pytorch)
 
 ### 1) Clone repo (with submodule)
-
-```bash
-cd ~
-git clone --recurse-submodules <YOUR_REPO_URL> VPP
-```
-
-If your intended location is `~/workspace/vpp-test-repo`, you can clone directly there:
 
 ```bash
 mkdir -p ~/workspace
@@ -69,15 +66,15 @@ git config --global url."https://ghfast.top/https://github.com/".insteadOf "http
 Then clone / update submodules as usual:
 
 ```bash
-git clone --recurse-submodules <YOUR_REPO_URL> VPP
-# or
-cd ~/VPP && git submodule update --init video-prediction-policy
+git clone --recurse-submodules <YOUR_REPO_URL> ~/workspace/vpp-test-repo
+# or (if already cloned)
+cd ~/workspace/vpp-test-repo && git submodule update --init video-prediction-policy
 ```
 
 If you already cloned without submodules:
 
 ```bash
-cd ~/VPP
+cd ~/workspace/vpp-test-repo
 git submodule update --init --recursive
 ```
 
@@ -86,8 +83,8 @@ If your environment needs a mirror, run the git `insteadOf` config above first.
 Verify:
 
 ```bash
-ls -la ~/VPP
-ls -la ~/VPP/video-prediction-policy
+ls -la ~/workspace/vpp-test-repo
+ls -la ~/workspace/vpp-test-repo/video-prediction-policy
 ```
 
 Note: upstream VPP is tracked as a git submodule at `video-prediction-policy/`.
@@ -99,7 +96,7 @@ Two supported paths:
 #### Option A (recommended for generic machines): conda env `vpp`
 
 ```bash
-cd "${REPO_ROOT:-~/VPP}"
+cd "${REPO_ROOT:-~/workspace/vpp-test-repo}"
 conda create -n vpp python=3.10 -y
 conda activate vpp
 
@@ -128,7 +125,7 @@ then **do not create a new conda env** unless you want to.
 Use the container’s existing Python/torch and only install missing deps:
 
 ```bash
-cd "${REPO_ROOT:-/root/workspace/VPP}"
+cd "${REPO_ROOT:-/root/workspace/vpp-test-repo}"
 
 python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda, 'n_gpus', torch.cuda.device_count())"
 
@@ -311,7 +308,7 @@ ls -la "$VIDEO_DATASET_DIR/calvin" || true
 ### 8) Run Task 1
 
 ```bash
-cd ~/VPP
+cd "${REPO_ROOT:-~/workspace/vpp-test-repo}"
 
 # Example preset: 8× A800
 PRESET=a800_8gpu \
@@ -322,7 +319,7 @@ bash scripts/run_task1_train_vpp_calvin_d2d.sh
 ### 9) Run Task 2
 
 ```bash
-cd ~/VPP
+cd "${REPO_ROOT:-~/workspace/vpp-test-repo}"
 
 PRESET=a800_8gpu \
 VIDEO_DATASETS=calvin VIDEO_DATASET_PROB='[1.0]' \
