@@ -36,12 +36,37 @@ cd ~
 git clone --recurse-submodules <YOUR_REPO_URL> VPP
 ```
 
+#### (China/GFW) Faster submodule download via a GitHub mirror
+
+If `github.com` is slow/unreachable, configure git to rewrite GitHub URLs to your mirror.
+This works for submodules too.
+
+Example using `ghfast.top` (pick the prefix that matches your mirror):
+
+```bash
+# Option A: mirror expects URLs like: https://ghfast.top/https://github.com/<org>/<repo>.git
+git config --global url."https://ghfast.top/https://github.com/".insteadOf "https://github.com/"
+
+# Option B: mirror expects URLs like: https://ghfast.top/github.com/<org>/<repo>.git
+# git config --global url."https://ghfast.top/github.com/".insteadOf "https://github.com/"
+```
+
+Then clone / update submodules as usual:
+
+```bash
+git clone --recurse-submodules <YOUR_REPO_URL> VPP
+# or
+cd ~/VPP && git submodule update --init video-prediction-policy
+```
+
 If you already cloned without submodules:
 
 ```bash
 cd ~/VPP
 git submodule update --init --recursive
 ```
+
+If your environment needs a mirror, run the git `insteadOf` config above first.
 
 Verify:
 

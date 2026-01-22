@@ -26,8 +26,28 @@ If you already cloned:
 git submodule update --init video-prediction-policy
 ```
 
+### (China/GFW) Faster submodule download via a GitHub mirror
+
+You can configure git to rewrite GitHub URLs to a mirror (recommended, because it
+also applies to submodules):
+
+```bash
+# Option A: mirror expects URLs like: https://ghfast.top/https://github.com/<org>/<repo>.git
+git config --global url."https://ghfast.top/https://github.com/".insteadOf "https://github.com/"
+
+# Option B: mirror expects URLs like: https://ghfast.top/github.com/<org>/<repo>.git
+# git config --global url."https://ghfast.top/github.com/".insteadOf "https://github.com/"
+```
+
+Then run submodule init normally:
+
+```bash
+git submodule update --init video-prediction-policy
+```
+
 Note: this repo intentionally does **not** recurse into any *nested* submodules under
 `video-prediction-policy/`.
+
 
 ## Smoke tests (no datasets/models required)
 
