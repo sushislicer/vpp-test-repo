@@ -97,6 +97,9 @@ cd "${REPO_ROOT:-~/VPP}"
 conda create -n vpp python=3.10 -y
 conda activate vpp
 
+# (China/GFW) use an HTTPS pip mirror to avoid HTTP/untrusted-host issues
+bash scripts/configure_pip_mirror_cn.sh
+
 # Core deps for upstream VPP
 pip install -r video-prediction-policy/requirements.txt
 pip install accelerate "huggingface_hub[cli]"
@@ -157,6 +160,16 @@ it is usually due to a too-new `setuptools` in your env. Fix by pinning `setupto
 
 ```bash
 conda activate vpp
+export CALVIN_ROOT=~/calvin
+bash scripts/install_calvin_with_compat_pins.sh
+```
+
+If CALVIN install fails while building `pyhash` and mentions your pip index is HTTP or “not a trusted host”,
+configure an HTTPS mirror first:
+
+```bash
+conda activate vpp
+bash scripts/configure_pip_mirror_cn.sh
 export CALVIN_ROOT=~/calvin
 bash scripts/install_calvin_with_compat_pins.sh
 ```

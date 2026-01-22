@@ -16,6 +16,10 @@ set -euo pipefail
 #   export CALVIN_ROOT=~/calvin
 #   bash scripts/install_calvin_with_compat_pins.sh
 
+# Optional (recommended in CN environments):
+#   export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+#   export PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
+
 CALVIN_ROOT="${CALVIN_ROOT:-}"
 if [[ -z "${CALVIN_ROOT}" ]]; then
   echo "Set CALVIN_ROOT first, e.g.: export CALVIN_ROOT=~/calvin" >&2
@@ -34,9 +38,20 @@ echo "[calvin-install] python: $(python3 -V)"
 echo "[calvin-install] Applying packaging compatibility pins..."
 python3 -m pip install --upgrade "pip<25" "wheel" "setuptools<58" >/dev/null
 
+if [[ -n "${PIP_INDEX_URL:-}" ]]; then
+  echo "[calvin-install] Using PIP_INDEX_URL=${PIP_INDEX_URL}"
+fi
+if [[ -n "${PIP_TRUSTED_HOST:-}" ]]; then
+  echo "[calvin-install] Using PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}"
+fi
+
+# pyhash (a CALVIN dependency) sometimes declares build-time deps via setup_requires.
+# If your pip is configured to an HTTP mirror or an untrusted host, those build deps
+# can fail to resolve. Preinstall the common culprit explicitly.
+python3 -m pip install -U pytest-benchmark >/dev/null || true
+
 echo "[calvin-install] Installing CALVIN via install.sh..."
 cd "${CALVIN_ROOT}"
 sh install.sh
 
 echo "[calvin-install] Done."
-
