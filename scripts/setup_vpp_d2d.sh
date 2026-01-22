@@ -79,7 +79,7 @@ echo ""
 
 # Step 5: Install VPP dependencies
 echo -e "${YELLOW}[5/8] Installing VPP dependencies...${NC}"
-cd $VPP_DIR
+cd "$VPP_DIR"
 pip install -r requirements.txt
 echo -e "${GREEN}✓ VPP dependencies installed${NC}"
 echo ""
@@ -90,9 +90,9 @@ pip install accelerate
 echo -e "${GREEN}✓ Accelerate installed${NC}"
 echo ""
 
-# Step 7: Install huggingface-hub
-echo -e "${YELLOW}[7/8] Installing huggingface-hub...${NC}"
-pip install huggingface-hub
+# Step 7: Install huggingface-hub (+ CLI)
+echo -e "${YELLOW}[7/8] Installing huggingface-hub (+ CLI)...${NC}"
+pip install "huggingface_hub[cli]"
 echo -e "${GREEN}✓ huggingface-hub installed${NC}"
 echo ""
 
@@ -118,9 +118,9 @@ echo ""
 
 # Step 9: Set environment variables
 echo -e "${YELLOW}Setting environment variables...${NC}"
-export CUDA_VISIBLE_DEVICES=0,1,2,3
-export CALVIN_ROOT=$CALVIN_ROOT
-echo -e "${GREEN}✓ Environment variables set${NC}"
+export CALVIN_ROOT="$CALVIN_ROOT"
+echo -e "${GREEN}✓ CALVIN_ROOT set for this shell: ${CALVIN_ROOT}${NC}"
+echo -e "${YELLOW}Note:${NC} CUDA_VISIBLE_DEVICES is NOT overridden by this script. Set it yourself if needed."
 echo ""
 
 # Step 10: Verify installation
@@ -163,5 +163,5 @@ echo "       --action_model_folder $MODELS_DIR/dp-calvin \\"
 echo "       --clip_model_path $MODELS_DIR/clip-vit-base-patch32 \\"
 echo "       --calvin_d2d_dir $DATASET_DIR"
 echo ""
-echo "For detailed instructions, see: README.md and INSTALLATION_GUIDE.md"
+echo "For detailed instructions, see: scripts/README.md"
 echo ""

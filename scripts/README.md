@@ -20,7 +20,7 @@ This folder is the **only** place you should need to touch to run experiments.
 
 ## QUICK START (remote SSH, end-to-end)
 
-This section is designed to be copy/paste-friendly on a fresh server.
+This section is **fully command-driven** (copy/paste) and assumes the repo will live at `~/VPP` on the remote.
 
 ### 0) System prerequisites
 
@@ -29,29 +29,32 @@ You need:
 * NVIDIA driver + CUDA runtime working (`nvidia-smi`)
 * A conda installation (Miniconda/Mambaforge)
 
-### 1) Clone repos
+### 1) Clone repo
 
 ```bash
 cd ~
-git clone https://github.com/sushislicer/vpp-test-repo.git VPP
-cd VPP
-
-# IMPORTANT: video-prediction-policy is NOT a git submodule in this repo.
-# Ensure the upstream VPP repo is present at ./video-prediction-policy
-if [ ! -d video-prediction-policy ]; then
-  git clone https://github.com/roboterax/video-prediction-policy.git video-prediction-policy
-fi
+git clone <YOUR_REPO_URL> VPP
 ```
+
+Verify:
+
+```bash
+ls -la ~/VPP
+ls -la ~/VPP/video-prediction-policy
+```
+
+Note: this repo already contains the upstream VPP code under `video-prediction-policy/`.
 
 ### 2) Create environment + install Python deps
 
 ```bash
+cd ~/VPP
 conda create -n vpp python=3.10 -y
 conda activate vpp
 
 # Core deps for upstream VPP
 pip install -r video-prediction-policy/requirements.txt
-pip install accelerate huggingface-hub
+pip install accelerate "huggingface_hub[cli]"
 
 # (Optional but common)
 pip install wandb
@@ -59,29 +62,24 @@ pip install wandb
 
 ### 3) Configure `accelerate`
 
-Run once per machine/user:
+Non-interactive default config:
+
+```bash
+accelerate config default
+```
+
+Interactive config (if you prefer):
 
 ```bash
 accelerate config
 ```
 
-Suggested answers (single node, multi-GPU):
+Use these answers for a single node:
 
-* **In which compute environment are you running?** → `This machine`
-* **Which type of machine are you using?** → `multi-GPU`
-* **How many processes in total?** → set to your GPU count (e.g. `4` or `8`)
-* **Do you want to use DeepSpeed?** → `no`
-* **Do you want to use FullyShardedDataParallel?** → `no`
-* **Do you want to use Megatron-LM?** → `no`
-* **Mixed precision** →
-  * `bf16` for A800/A100/H100 if supported
-  * `fp16` otherwise
-
-If you just want a reasonable default config without the questionnaire:
-
-```bash
-accelerate config default
-```
+* compute environment: `LOCAL_MACHINE`
+* distributed: `MULTI_GPU`
+* processes: `4` (for 4 GPUs) or `8` (for 8 GPUs)
+* mixed precision: `fp16` (or `bf16` on A800/A100/H100)
 
 ### 4) Install CALVIN + dataset
 
@@ -95,14 +93,13 @@ cd "$CALVIN_ROOT"
 sh install.sh
 ```
 
-Dataset:
+Set the dataset path env var (your smaller D/D split):
 
-* Follow CALVIN’s dataset instructions.
-* For this project you want the **smaller D/D split (~166GB)**.
-
-Expected env var used by our launchers:
-
-* `CALVIN_ROOT_DATA_DIR=/path/to/calvin/task_D_D`
+```bash
+# Change this to wherever your smaller D/D split actually lives on the server.
+export CALVIN_ROOT_DATA_DIR=/data/calvin/task_D_D
+ls -la "$CALVIN_ROOT_DATA_DIR"
+```
 
 ### 5) Download models
 
@@ -115,7 +112,9 @@ Example (CLIP):
 
 ```bash
 mkdir -p ~/models
-huggingface-cli download openai/clip-vit-base-patch32 --local-dir ~/models/clip-vit-base-patch32
+hf auth login
+hf download openai/clip-vit-base-patch32 --local-dir ~/models/clip-vit-base-patch32 --local-dir-use-symlinks False
+export CLIP_MODEL=~/models/clip-vit-base-patch32
 ```
 
 SVD base model (`SVD_BASE_MODEL`): upstream training expects a **local diffusers directory**.
@@ -124,7 +123,8 @@ Example source (Hugging Face; may require accepting model terms):
 
 ```bash
 mkdir -p ~/models
-huggingface-cli download stabilityai/stable-video-diffusion-img2vid --local-dir ~/models/stable-video-diffusion-img2vid
+hf download stabilityai/stable-video-diffusion-img2vid --local-dir ~/models/stable-video-diffusion-img2vid --local-dir-use-symlinks False
+export SVD_BASE_MODEL=~/models/stable-video-diffusion-img2vid
 ```
 
 Then:
@@ -138,11 +138,45 @@ export SVD_BASE_MODEL=~/models/stable-video-diffusion-img2vid
 Export these (or pass inline):
 
 ```bash
-export VIDEO_DATASET_DIR=/data/vpp_svd_latent
-export CALVIN_ROOT_DATA_DIR=/data/calvin/task_D_D
-export SVD_BASE_MODEL=~/models/stable-video-diffusion-img2vid
-export CLIP_MODEL=~/models/clip-vit-base-patch32
+mkdir -p ~/exp/vpp
 export OUTPUT_ROOT=~/exp/vpp
+```
+
+### 7) Obtain `VIDEO_DATASET_DIR` (latent-video dataset)
+
+Fastest path is downloading CALVIN latents from the released HF dataset:
+
+```bash
+mkdir -p /data/vpp_svd_latent
+hf download yjguo/vpp_svd_latent \
+  --repo-type dataset \
+  --local-dir /data/vpp_svd_latent \
+  --local-dir-use-symlinks False \
+  --include "calvin/**"
+export VIDEO_DATASET_DIR=/data/vpp_svd_latent
+ls -la "$VIDEO_DATASET_DIR/calvin" || true
+```
+
+### 8) Run Task 1
+
+```bash
+cd ~/VPP
+
+# Example preset: 8× A800
+PRESET=a800_8gpu \
+VIDEO_DATASETS=calvin VIDEO_DATASET_PROB='[1.0]' \
+bash scripts/run_task1_train_vpp_calvin_d2d.sh
+```
+
+### 9) Run Task 2
+
+```bash
+cd ~/VPP
+
+PRESET=a800_8gpu \
+VIDEO_DATASETS=calvin VIDEO_DATASET_PROB='[1.0]' \
+VIDEO_A_SEED=42 VIDEO_B_SEED=123 ACTOR_A_SEED=456 \
+bash scripts/run_task2_video_seed_fixed_actor.sh
 ```
 
 ## Configuration checklist (what you *must* set)
@@ -189,10 +223,10 @@ Example:
 
 ```bash
 # If needed (first time on this machine):
-huggingface-cli login
+hf auth login
 
 mkdir -p /data/vpp_svd_latent
-huggingface-cli download yjguo/vpp_svd_latent \
+hf download yjguo/vpp_svd_latent \
   --repo-type dataset \
   --local-dir /data/vpp_svd_latent \
   --local-dir-use-symlinks False
@@ -202,7 +236,7 @@ export VIDEO_DATASET_DIR=/data/vpp_svd_latent
 If you only need CALVIN-related files, you can try to download a subset (exact paths depend on the dataset layout):
 
 ```bash
-huggingface-cli download yjguo/vpp_svd_latent \
+hf download yjguo/vpp_svd_latent \
   --repo-type dataset \
   --local-dir /data/vpp_svd_latent \
   --include "calvin/**"
@@ -219,6 +253,26 @@ export VIDEO_DATASET_PROB='[1.0]'
 ```
 
 and then downloading only the CALVIN subset is sufficient.
+
+What “download only the CALVIN subset” means:
+
+* The Hugging Face dataset repo `yjguo/vpp_svd_latent` contains multiple dataset folders (e.g. `sthv2/`, `bridge/`, `rt1/`, `calvin/`, …).
+* The upstream video finetuning loader reads from `VIDEO_DATASET_DIR` and then picks which dataset folder(s) to use via `train_args.dataset`.
+* If you only train on `calvin`, you only need the files under the `calvin/` directory inside the HF dataset, not the entire repo.
+
+Concretely, you can download only the `calvin/` directory by using `--include "calvin/**"`:
+
+```bash
+mkdir -p /data/vpp_svd_latent
+hf download yjguo/vpp_svd_latent \
+  --repo-type dataset \
+  --local-dir /data/vpp_svd_latent \
+  --local-dir-use-symlinks False \
+  --include "calvin/**"
+export VIDEO_DATASET_DIR=/data/vpp_svd_latent
+```
+
+After this, you should see a `/data/vpp_svd_latent/calvin/` directory. The exact internal layout under `calvin/` is defined by what the dataset author uploaded and what upstream expects.
 
 ##### Option B: build your own latent-video dataset
 
@@ -239,7 +293,7 @@ Download from Hugging Face:
 
 ```bash
 mkdir -p ~/models
-huggingface-cli download openai/clip-vit-base-patch32 --local-dir ~/models/clip-vit-base-patch32
+hf download openai/clip-vit-base-patch32 --local-dir ~/models/clip-vit-base-patch32 --local-dir-use-symlinks False
 export CLIP_MODEL=~/models/clip-vit-base-patch32
 ```
 
@@ -249,7 +303,7 @@ Download from Hugging Face (example):
 
 ```bash
 mkdir -p ~/models
-huggingface-cli download stabilityai/stable-video-diffusion-img2vid --local-dir ~/models/stable-video-diffusion-img2vid
+hf download stabilityai/stable-video-diffusion-img2vid --local-dir ~/models/stable-video-diffusion-img2vid --local-dir-use-symlinks False
 export SVD_BASE_MODEL=~/models/stable-video-diffusion-img2vid
 ```
 
@@ -304,17 +358,7 @@ bash scripts/run_task2_video_seed_fixed_actor.sh
 
 ## Remote SSH setup (minimal)
 
-From a fresh clone under `~/`:
-
-```bash
-conda create -n vpp python=3.10 -y
-conda activate vpp
-
-pip install -r video-prediction-policy/requirements.txt
-pip install accelerate
-```
-
-Install CALVIN if you need environment evaluation.
+Deprecated; use the QUICK START above.
 
 ## Sanity checks
 
@@ -322,6 +366,19 @@ Install CALVIN if you need environment evaluation.
 python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available(), 'n_gpus', torch.cuda.device_count())"
 python3 -c "import accelerate; print('accelerate', accelerate.__version__)"
 ```
+
+Optional preflight checker (catches missing `diffusers` / missing env vars early):
+
+```bash
+python3 scripts/check_setup.py
+```
+
+If you see `ModuleNotFoundError: diffusers`, ensure you ran:
+
+```bash
+pip install -r video-prediction-policy/requirements.txt
+```
+
 
 ## Task 1 — Reproduce VPP training on the smaller D/D split
 
