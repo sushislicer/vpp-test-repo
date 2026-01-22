@@ -7,8 +7,19 @@ This repo contains:
 
 ## What to read
 
-* End-to-end setup + training: [`scripts/README.md`](scripts/README.md)
+* End-to-end setup + training (including container instructions):
+  [`scripts/README.md`](scripts/README.md)
 * (Optional) interactive setup for Calvin D→D benchmark: [`scripts/setup_vpp_d2d.sh`](scripts/setup_vpp_d2d.sh)
+
+## Running inside a PyTorch container (recommended on A800/A100/H100)
+
+If you are using a container that already provides CUDA + PyTorch (e.g.
+`registry.baidubce.com/inference/aibox-pytorch:v1.0-torch2.5.1-cu12.4`), follow
+the **Option B** path in [`scripts/README.md`](scripts/README.md:118):
+
+* Don’t create a new conda env.
+* Install upstream VPP requirements **without** downgrading torch.
+* Install CALVIN via the wrapper in `no_deps` mode to avoid `torch==1.13.1` wheel downloads.
 
 ## Submodule: `video-prediction-policy/`
 

@@ -33,7 +33,9 @@ export REPO_ROOT=~/workspace/vpp-test-repo
 You need:
 
 * NVIDIA driver + CUDA runtime working (`nvidia-smi`)
-* A conda installation (Miniconda/Mambaforge)
+* A working Python environment
+  * Option A: a conda installation (Miniconda/Mambaforge)
+  * Option B: an ML container that already includes Python + CUDA + PyTorch (e.g. aibox-pytorch)
 
 ### 1) Clone repo (with submodule)
 
@@ -90,7 +92,11 @@ ls -la ~/VPP/video-prediction-policy
 
 Note: upstream VPP is tracked as a git submodule at `video-prediction-policy/`.
 
-### 2) Create environment + install Python deps
+### 2) Python environment + install Python deps
+
+Two supported paths:
+
+#### Option A (recommended for generic machines): conda env `vpp`
 
 ```bash
 cd "${REPO_ROOT:-~/VPP}"
@@ -108,6 +114,34 @@ pip install accelerate "huggingface_hub[cli]"
 pip install "numpy<2"
 
 # (Optional but common)
+pip install wandb
+```
+
+#### Option B (your setup): aibox-pytorch container (Torch 2.5.1 + CUDA 12.4)
+
+If you are running inside:
+
+* `registry.baidubce.com/inference/aibox-pytorch:v1.0-torch2.5.1-cu12.4`
+* 4× A800 80GB GPUs
+
+then **do not create a new conda env** unless you want to.
+Use the container’s existing Python/torch and only install missing deps:
+
+```bash
+cd "${REPO_ROOT:-/root/workspace/VPP}"
+
+python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda, 'n_gpus', torch.cuda.device_count())"
+
+# (China/GFW) use an HTTPS pip mirror
+bash scripts/configure_pip_mirror_cn.sh
+
+# Install upstream VPP deps BUT DO NOT install/override torch.
+# The upstream requirements pin `torch==2.0.1`, which would downgrade your container torch.
+grep -v -E '^torch==' video-prediction-policy/requirements.txt > /tmp/vpp_requirements.no_torch.txt
+pip install -r /tmp/vpp_requirements.no_torch.txt
+pip install accelerate "huggingface_hub[cli]"
+
+# Optional
 pip install wandb
 ```
 
@@ -173,6 +207,22 @@ bash scripts/configure_pip_mirror_cn.sh
 export CALVIN_ROOT=~/calvin
 bash scripts/install_calvin_with_compat_pins.sh
 ```
+
+##### aibox-pytorch container note (Torch 2.5.1 already installed)
+
+In the `aibox-pytorch` container, CALVIN’s upstream `install.sh` may try to download a pinned
+`torch==1.13.1` wheel from pip, which is large and can time out.
+
+Use the repo’s installer wrapper with the **no-deps** mode to avoid re-installing torch:
+
+```bash
+export CALVIN_ROOT=/root/workspace/calvin   # adjust to your clone path
+export CALVIN_INSTALL_MODE=no_deps
+bash scripts/install_calvin_with_compat_pins.sh
+```
+
+This installs CALVIN components in editable mode but skips dependency resolution for `calvin_models`
+(so it does not force `torch==1.13.1`).
 
 If the install appears to **hang downloading PyTorch** (e.g. `torch-1.13.1-...whl` at only a few kB/s),
 switch to a different mirror and retry. For example, Aliyun is often faster than TUNA on some networks:

@@ -52,11 +52,18 @@ fi
 # Force pip to ignore user/system config during this install flow.
 export PIP_CONFIG_FILE="${PIP_CONFIG_FILE:-/dev/null}"
 
+# Large wheels (notably torch) can trigger transient network read timeouts in some
+# container/VM networks. Make pip more tolerant by default.
+export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-600}"
+export PIP_RETRIES="${PIP_RETRIES:-20}"
+
 pip_install() {
   # Usage: pip_install <args...>
   python3 -m pip install \
     --index-url "${PIP_INDEX_URL}" \
     --trusted-host "${PIP_TRUSTED_HOST}" \
+    --retries "${PIP_RETRIES}" \
+    --timeout "${PIP_DEFAULT_TIMEOUT}" \
     "$@"
 }
 
@@ -74,11 +81,15 @@ pip_install --upgrade "pip<25" wheel "setuptools<58" >/dev/null
 CALVIN_PREINSTALL_TORCH="${CALVIN_PREINSTALL_TORCH:-0}"
 CALVIN_TORCH_VARIANT="${CALVIN_TORCH_VARIANT:-cuda}"
 if [[ "${CALVIN_PREINSTALL_TORCH}" == "1" ]]; then
-  if python3 -c "import torch; print(torch.__version__)" >/dev/null 2>&1; then
-    echo "[calvin-install] torch already installed; skipping torch preinstall"
-  else
+  TORCH_VER=""
+  TORCH_VER=$(python3 -c "import torch; print(torch.__version__)" 2>/dev/null || true)
+  echo "[calvin-install] torch (before): ${TORCH_VER:-<not installed>}"
+
+  # If torch is missing OR not the exact pinned version CALVIN requests, pip will
+  # attempt to download torch==1.13.1 during `install.sh`. Prefer fixing torch here.
+  if [[ "${TORCH_VER}" != "1.13.1" ]]; then
     if command -v conda >/dev/null 2>&1; then
-      echo "[calvin-install] Preinstalling torch via conda to avoid slow pip wheel downloads..."
+      echo "[calvin-install] Installing/downgrading torch to 1.13.1 via conda (avoids pip wheel download)..."
       if [[ "${CALVIN_TORCH_VARIANT}" == "cpu" ]]; then
         # CPU-only (smaller), good enough to get CALVIN installed.
         conda install -y pytorch==1.13.1 torchvision torchaudio cpuonly -c pytorch || true
@@ -89,6 +100,14 @@ if [[ "${CALVIN_PREINSTALL_TORCH}" == "1" ]]; then
     else
       echo "[calvin-install] conda not found; cannot preinstall torch via conda" >&2
     fi
+  fi
+
+  TORCH_VER_AFTER=""
+  TORCH_VER_AFTER=$(python3 -c "import torch; print(torch.__version__)" 2>/dev/null || true)
+  echo "[calvin-install] torch (after): ${TORCH_VER_AFTER:-<not installed>}"
+  if [[ "${TORCH_VER_AFTER}" != "1.13.1" ]]; then
+    echo "[calvin-install] WARNING: torch is not exactly 1.13.1; CALVIN install may still trigger a pip download of torch==1.13.1" >&2
+    echo "[calvin-install] If you are okay with a slower install, you can ignore this warning and let pip download it." >&2
   fi
 fi
 
@@ -105,7 +124,40 @@ fi
 pip_install -U pytest-runner pytest-benchmark
 
 echo "[calvin-install] Installing CALVIN via install.sh..."
+
+# Some environments (notably ML containers that already ship torch) may not want to
+# run CALVIN's upstream `install.sh`, because it can force-download pinned torch
+# wheels and other heavy deps.
+#
+# Modes:
+#   - install_sh (default): run upstream `install.sh` as-is.
+#   - manual: mimic the common install.sh flow by installing subpackages editable.
+#   - no_deps: like manual, but installs `calvin_models` with `--no-deps` (avoids
+#              forcing torch==1.13.1 and problematic deps like pyhash).
+CALVIN_INSTALL_MODE="${CALVIN_INSTALL_MODE:-install_sh}"
+
 cd "${CALVIN_ROOT}"
-sh install.sh
+case "${CALVIN_INSTALL_MODE}" in
+  install_sh)
+    sh install.sh
+    ;;
+  manual)
+    echo "[calvin-install] CALVIN_INSTALL_MODE=manual (editable installs)"
+    pip_install -e calvin_env/tacto
+    pip_install -e calvin_env
+    pip_install -e calvin_models
+    ;;
+  no_deps)
+    echo "[calvin-install] CALVIN_INSTALL_MODE=no_deps (skip deps for calvin_models)"
+    echo "[calvin-install] NOTE: this avoids forcing torch==1.13.1; if you later hit runtime import errors, switch to install_sh or a dedicated conda env." >&2
+    pip_install -e calvin_env/tacto
+    pip_install -e calvin_env
+    pip_install -e calvin_models --no-deps
+    ;;
+  *)
+    echo "Unknown CALVIN_INSTALL_MODE='${CALVIN_INSTALL_MODE}'. Use install_sh|manual|no_deps" >&2
+    exit 2
+    ;;
+esac
 
 echo "[calvin-install] Done."
