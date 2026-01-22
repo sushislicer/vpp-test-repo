@@ -36,7 +36,6 @@ fi
 echo "[calvin-install] python: $(python3 -V)"
 
 echo "[calvin-install] Applying packaging compatibility pins..."
-python3 -m pip install --upgrade "pip<25" "wheel" "setuptools<58" >/dev/null
 
 # Ensure build-time dependencies pulled via legacy `setup_requires` can be resolved.
 # Some mirrors (or HTTP URLs) are treated as untrusted by pip and will be ignored,
@@ -48,6 +47,21 @@ if [[ -z "${PIP_TRUSTED_HOST:-}" ]]; then
   export PIP_TRUSTED_HOST="pypi.tuna.tsinghua.edu.cn"
 fi
 
+# In some containers/environments, a global pip config may force an HTTP mirror
+# (e.g. mirrors.baidubce.com). That can be treated as untrusted and break builds.
+# Force pip to ignore user/system config during this install flow.
+export PIP_CONFIG_FILE="${PIP_CONFIG_FILE:-/dev/null}"
+
+pip_install() {
+  # Usage: pip_install <args...>
+  python3 -m pip install \
+    --index-url "${PIP_INDEX_URL}" \
+    --trusted-host "${PIP_TRUSTED_HOST}" \
+    "$@"
+}
+
+pip_install --upgrade "pip<25" wheel "setuptools<58" >/dev/null
+
 if [[ -n "${PIP_INDEX_URL:-}" ]]; then
   echo "[calvin-install] Using PIP_INDEX_URL=${PIP_INDEX_URL}"
 fi
@@ -58,7 +72,7 @@ fi
 # pyhash (a CALVIN dependency) sometimes declares build-time deps via setup_requires.
 # If those build deps fail to resolve, installs can error out while generating metadata.
 # Preinstall the common culprits explicitly.
-python3 -m pip install -U pytest-runner pytest-benchmark >/dev/null || true
+pip_install -U pytest-runner pytest-benchmark
 
 echo "[calvin-install] Installing CALVIN via install.sh..."
 cd "${CALVIN_ROOT}"
