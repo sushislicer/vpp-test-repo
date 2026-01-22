@@ -20,7 +20,13 @@ This folder is the **only** place you should need to touch to run experiments.
 
 ## QUICK START (remote SSH, end-to-end)
 
-This section is **fully command-driven** (copy/paste) and assumes the repo will live at `~/VPP` on the remote.
+This section is **fully command-driven** (copy/paste).
+
+If your repo lives at `~/workspace/vpp-test-repo` (your SSH VM), set:
+
+```bash
+export REPO_ROOT=~/workspace/vpp-test-repo
+```
 
 ### 0) System prerequisites
 
@@ -34,6 +40,13 @@ You need:
 ```bash
 cd ~
 git clone --recurse-submodules <YOUR_REPO_URL> VPP
+```
+
+If your intended location is `~/workspace/vpp-test-repo`, you can clone directly there:
+
+```bash
+mkdir -p ~/workspace
+git clone --recurse-submodules <YOUR_REPO_URL> ~/workspace/vpp-test-repo
 ```
 
 #### (China/GFW) Faster submodule download via a GitHub mirror
@@ -80,7 +93,7 @@ Note: upstream VPP is tracked as a git submodule at `video-prediction-policy/`.
 ### 2) Create environment + install Python deps
 
 ```bash
-cd ~/VPP
+cd "${REPO_ROOT:-~/VPP}"
 conda create -n vpp python=3.10 -y
 conda activate vpp
 
@@ -88,16 +101,27 @@ conda activate vpp
 pip install -r video-prediction-policy/requirements.txt
 pip install accelerate "huggingface_hub[cli]"
 
+# Avoid common NumPy 2.x ABI issues in some environments
+pip install "numpy<2"
+
 # (Optional but common)
 pip install wandb
 ```
 
 ### 3) Configure `accelerate`
 
-Non-interactive default config:
+Non-interactive default config (may import `transformers`):
 
 ```bash
 accelerate config default
+```
+
+If `accelerate config` prints NumPy ABI errors/warnings on your machine, skip it and write a config
+directly (recommended on SSH VMs):
+
+```bash
+# For a single node with 4× A800
+bash scripts/configure_accelerate_ssh_4gpu_a800.sh
 ```
 
 Interactive config (if you prefer):
